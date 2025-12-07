@@ -1,0 +1,15 @@
+
+plugins {
+  id 'java'
+}
+
+repositories {
+    mavenCentral()
+    maven { url 'https://repo.spring.io/milestone' }
+    maven { url 'https://repo.spring.io/snapshot' }
+}
+
+dependencies {
+    // https://mvnrepository.com/artifact/org.apache.groovy/groovy-all
+    implementation 'org.apache.groovy:groovy-all:5.0.3'
+}
