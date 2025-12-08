@@ -25,19 +25,15 @@ def run(String[] args) {
     def freshIdCount = 0
     def freshAvailableIdCount = 0
     
-    def mergeRange = { Range inRange, mergeDuplicates = true -> boolean
-        def mergeDuplicatesCondition = { Range range -> boolean
-            return (mergeDuplicates || (inRange != range))
-        }
-        
+    def mergeRange = { Range inRange -> boolean
         for (range in ranges.headSet(new Range(start: inRange.start, end: Long.MAX_VALUE), true)) {
-            if (inRange.start <= range.end && mergeDuplicatesCondition(range)) {
+            if (inRange.start <= range.end && !inRange.is(range)) {
                 range.end = Math.max(range.end, inRange.end)
                 return true
             }
         }
         for (range in ranges.tailSet(new Range(start: inRange.start, end: inRange.start), true)) {
-            if (range.start <= inRange.end && mergeDuplicatesCondition(range)) {
+            if (range.start <= inRange.end && !inRange.is(range)) {
                 range.start = inRange.start
                 range.end = Math.max(range.end, inRange.end)
                 return true
@@ -86,7 +82,7 @@ def run(String[] args) {
     def mergeIntervals = {
         def iterator = ranges.iterator()
         while (iterator.hasNext()) {
-            if (mergeRange(inRange=iterator.next(), mergeDuplicate=false)) {
+            if (mergeRange(inRange=iterator.next())) {
                 iterator.remove()
             }            
         }
