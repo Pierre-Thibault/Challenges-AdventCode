@@ -6,35 +6,28 @@ type LineChar = enum
   Splitter = "^"
   Beam = "|"
 
-var splitCount = 0
+##########################################################################
+# Part 1
+##########################################################################
 
-proc startProcessor(nextLine: string, position:int): string =
+func startProcessor(nextLine: string, position:int): string =
   nextLine[0..<position] & $Beam & nextLine[position + 1..^1]
 
-template withFileLines(fileName: string, body: untyped) =
-  let inputFile = open(fileName, fmRead)
-  defer: inputFile.close()
+proc getLineIterator(fileName: string): iterator(): string =
+  iterator(): string =
+    let inputFile = open(fileName, fmRead)
+    defer: inputFile.close()
 
-  var line {.inject.}: string
-  var lineRead {.inject.} = true
-  while lineRead:
-    lineRead = inputFile.readLine(line)
-    body
+    var line: string
+    while inputFile.readLine(line):
+      yield line  
 
-proc processLines(fileName: string) =
+proc processLines(lines: iterator(): string): int =
+  var splitCount = 0
   var currentLine = ""
   var nextLine = ""
 
-  withFileLines(fileName):
-    if line == "" and (currentLine == "" or nextLine == ""):
-      quit("Empty line. Don't know what to do!", 1)
-    if currentLine == "":
-      currentLine = line
-      continue
-    if nextLine == "":
-      nextLine = line
-      continue
-
+  proc processLine() =
     for position, character in currentLine:
       case parseEnum[LineChar]($character)
       of Start:
@@ -53,11 +46,27 @@ proc processLines(fileName: string) =
           quit("Unexpected char: '" & $nextChar & "'", 1)
       else:
         discard
+    
+  for line in lines():
+    if line == "" and (currentLine == "" or nextLine == ""):
+      quit("Empty line. Don't know what to do!", 1)
+    if currentLine == "":
+      currentLine = line
+      continue
+    if nextLine == "":
+      nextLine = line
+      continue
+
+    processLine()
 
     currentLine = nextLine
     nextLine = line
 
+  processLine()
+
+  return splitCount
+
 
 when isMainModule:
-  processLines("input")
+  let splitCount = "input".getLineIterator().processLines()
   echo "Split count: " & $splitCount
