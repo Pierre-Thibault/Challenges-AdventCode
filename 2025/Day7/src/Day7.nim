@@ -1,4 +1,4 @@
-import std/[strutils]
+import std/[strutils, tables]
 
 type LineChar = enum
   Space = "."
@@ -67,6 +67,39 @@ proc processLines(lines: iterator(): string): int =
   return splitCount
 
 
+##########################################################################
+# Part 2
+##########################################################################
+
+var splitterPathCount: Table[int, Table[int, int]] = initTable[int, Table[int, int]]()
+
+proc getLines(fileName: string): seq[string] =
+    readFile(fileName).splitLines()
+
+proc processBeam(lines: openArray[string], row: int, column: int): int =
+  for row in (row + 1)..<lines.len:
+    if lines[row].len > column and $lines[row][column] == $Splitter:
+      if row in splitterPathCount and column in splitterPathCount[row]:
+        return splitterPathCount[row][column]
+      let pathCount = processBeam(lines, row + 1, column - 1) + processBeam(lines, row + 1, column + 1)
+      withValue(splitterPathCount, row, value):
+        value[][column] = pathCount
+      do:
+        splitterPathCount[row] = { column: pathCount }.toTable
+      return pathCount
+  return 1
+  
+proc processStart(lines: openArray[string]): int =
+  for row, line in lines:
+    for column, char in line:
+      if $char == $Start:
+        return processBeam(lines, row + 1, column)
+  
+  
 when isMainModule:
   let splitCount = "input".getLineIterator().processLines()
   echo "Split count: " & $splitCount
+
+  let pathCount = "input".getLines().processStart()
+  echo "Path count: " & $pathCount
+  
