@@ -64,7 +64,7 @@ proc processLines(lines: iterator(): string): int =
 
   processLine()
 
-  return splitCount
+  splitCount
 
 
 ##########################################################################
