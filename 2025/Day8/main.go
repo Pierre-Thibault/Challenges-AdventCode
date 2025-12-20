@@ -86,6 +86,8 @@ func getJunctionsFromFile(fileName string) ([]Junction, error) {
 	return result, nil
 }
 
+// Finding the nearest junctions by pairing all of them and measuring their distance to each other.
+// Adding them to the resulting sorted slice.
 func findNerestJunctions(junctions []Junction) []DistanceForJunctionPair {
 	result := []DistanceForJunctionPair{}
 
@@ -119,8 +121,10 @@ func findNerestJunctions(junctions []Junction) []DistanceForJunctionPair {
 	return result
 }
 
+// Create the junction network where each junction is associated to its network.
 func createJunctionNetwork(junctions []Junction, distanceForJunctionPairs []DistanceForJunctionPair) JunctionNetwork {
 
+	// Create the initial network where each junction is simply connected to itself
 	createInitialJunctionNetwork := func() JunctionNetwork {
 		result := make(JunctionNetwork)
 		for _, junction := range junctions {
@@ -132,23 +136,26 @@ func createJunctionNetwork(junctions []Junction, distanceForJunctionPairs []Dist
 
 	junctionNetwork := createInitialJunctionNetwork()
 
+	// Link two junction together
 	linkJunctions := func(a, b Junction) {
-		// Remember the old map that b was using
-		oldBMap := junctionNetwork[b]
+		junctionNetworkA := junctionNetwork[a]
+		junctionNetworkB := junctionNetwork[b]
 
 		// Merge b's network into a's network
-		for junction := range junctionNetwork[b] {
-			junctionNetwork[a][junction] = true
+		for junction := range junctionNetworkB {
+			junctionNetworkA[junction] = true
 		}
 
 		// Update all junctions that were using b's old map to use a's map
+		junctionBMapID := getMapID(junctionNetworkB)
 		for junction, network := range junctionNetwork {
-			if getMapID(network) == getMapID(oldBMap) {
-				junctionNetwork[junction] = junctionNetwork[a]
+			if getMapID(network) == junctionBMapID {
+				junctionNetwork[junction] = junctionNetworkA
 			}
 		}
 	}
 
+	// Merge the nearest junctions we found previously
 	for _, distanceForJunctionPair := range distanceForJunctionPairs {
 		linkJunctions(distanceForJunctionPair.A, distanceForJunctionPair.B)
 	}
@@ -156,20 +163,23 @@ func createJunctionNetwork(junctions []Junction, distanceForJunctionPairs []Dist
 	return junctionNetwork
 }
 
+// Found the three large circuits of junctions
 func computeSizeOfThreeLargestCircuits(junctionNetwork JunctionNetwork) []int {
 	result := []int{}
+
+	// Avoid processing the junction having the same netnwork (having the same set)
 	alreadyProcessedJunctionSet := make(map[uintptr]bool)
+
 	for _, junctions := range junctionNetwork {
 		junctionsMapID := getMapID(junctions)
-		_, exists := alreadyProcessedJunctionSet[junctionsMapID]
-		if exists {
+		if _, exists := alreadyProcessedJunctionSet[junctionsMapID]; exists {
 			continue
 		}
 		junctionCount := len(junctions)
 		index := sort.Search(len(result), func(i int) bool {
 			return result[i] <= junctionCount
 		})
-		if index <= 2 {
+		if index < 3 {
 			result = slices.Insert(result, index, junctionCount)
 			if len(result) > 3 {
 				result = result[:3]
