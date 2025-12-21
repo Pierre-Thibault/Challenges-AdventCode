@@ -233,7 +233,7 @@ func main() {
 			fmt.Println("------------------------------------------------------------------------------------------------------------------------------------------")
 			fmt.Println("For the second part, it is quite slow (about 10 or 20 min). We create all the possible junctions (around half a million). Please wait...")
 		case PartTwo:
-			fmt.Printf("Multipiling together the X coordinates of the last two junction boxes connecting the entire network gives: %d", lastJunctionPair.A.X*lastJunctionPair.B.X)
+			fmt.Printf("Multipiling together the X coordinates of the last two junction boxes connecting the entire network gives: %d\n", lastJunctionPair.A.X*lastJunctionPair.B.X)
 		}
 	}
 }
