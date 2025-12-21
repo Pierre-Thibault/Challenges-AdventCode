@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"maps"
 	"math"
 	"os"
 	"reflect"
@@ -11,6 +12,16 @@ import (
 	"strconv"
 	"strings"
 )
+
+// Creating flag for part 1 and part two
+type PartMode int
+
+const (
+	PartOne PartMode = iota
+	PartTwo
+)
+
+var currentPart = PartOne
 
 // Number of junction pair to connect (the closed ones)
 const PAIR_TO_CONNECT = 1000
@@ -28,6 +39,9 @@ type DistanceForJunctionPair struct {
 	B        Junction
 	Distance float64
 }
+
+// For part, the last junction pair linking all the network together
+var lastJunctionPair = DistanceForJunctionPair{}
 
 // The set of junction connected to this junction (include the junction itself in its set)
 type JunctionNetwork map[Junction]map[Junction]bool
@@ -89,7 +103,7 @@ func getJunctionsFromFile(fileName string) ([]Junction, error) {
 // Finding the nearest junctions by pairing all of them and measuring their distance to each other.
 // Adding them to the resulting sorted slice.
 func findNerestJunctions(junctions []Junction) []DistanceForJunctionPair {
-	result := []DistanceForJunctionPair{}
+	result := make([]DistanceForJunctionPair, 0, len(junctions)*len(junctions)/2)
 
 	processNewJunctionPair := func(junctionA, junctionB Junction) {
 		// Calculate a distance between two junctions
@@ -101,9 +115,9 @@ func findNerestJunctions(junctions []Junction) []DistanceForJunctionPair {
 		index := sort.Search(len(result), func(i int) bool {
 			return result[i].Distance > distance
 		})
-		if index < PAIR_TO_CONNECT {
+		if (currentPart == PartOne && index < PAIR_TO_CONNECT) || currentPart == PartTwo {
 			result = slices.Insert(result, index, DistanceForJunctionPair{junctionA, junctionB, distance})
-			if len(result) > PAIR_TO_CONNECT {
+			if len(result) > PAIR_TO_CONNECT && currentPart == PartOne {
 				result = result[:PAIR_TO_CONNECT] // Keep only first PAIR_TO_CONNECT
 			}
 		}
@@ -121,7 +135,7 @@ func findNerestJunctions(junctions []Junction) []DistanceForJunctionPair {
 	return result
 }
 
-// Create the junction network where each junction is associated to its network.
+// Create the junction network where each junction is associated to its network of connection junction.
 func createJunctionNetwork(junctions []Junction, distanceForJunctionPairs []DistanceForJunctionPair) JunctionNetwork {
 
 	// Create the initial network where each junction is simply connected to itself
@@ -136,15 +150,16 @@ func createJunctionNetwork(junctions []Junction, distanceForJunctionPairs []Dist
 
 	junctionNetwork := createInitialJunctionNetwork()
 
+	junctionCount := len(junctions)
+
+	var lastJunctionPairFound = false
+
 	// Link two junction together
-	linkJunctions := func(a, b Junction) {
-		junctionNetworkA := junctionNetwork[a]
-		junctionNetworkB := junctionNetwork[b]
+	linkJunctions := func(junctionA, junctionB Junction) {
+		junctionNetworkA, junctionNetworkB := junctionNetwork[junctionA], junctionNetwork[junctionB]
 
 		// Merge b's network into a's network
-		for junction := range junctionNetworkB {
-			junctionNetworkA[junction] = true
-		}
+		maps.Copy(junctionNetworkA, junctionNetworkB)
 
 		// Update all junctions that were using b's old map to use a's map
 		junctionBMapID := getMapID(junctionNetworkB)
@@ -153,11 +168,18 @@ func createJunctionNetwork(junctions []Junction, distanceForJunctionPairs []Dist
 				junctionNetwork[junction] = junctionNetworkA
 			}
 		}
+		if currentPart == PartTwo && len(junctionNetworkA) == junctionCount {
+			lastJunctionPair = DistanceForJunctionPair{junctionA, junctionB, 0.0}
+			lastJunctionPairFound = true
+		}
 	}
 
 	// Merge the nearest junctions we found previously
 	for _, distanceForJunctionPair := range distanceForJunctionPairs {
 		linkJunctions(distanceForJunctionPair.A, distanceForJunctionPair.B)
+		if lastJunctionPairFound {
+			return junctionNetwork
+		}
 	}
 
 	return junctionNetwork
@@ -196,11 +218,22 @@ func main() {
 		fmt.Println("Process aborted due to error:", err)
 		os.Exit(1)
 	}
-	distanceForJunctionPairs := findNerestJunctions(junctions)
-
-	junctionNetwork := createJunctionNetwork(junctions, distanceForJunctionPairs)
-
-	threeLargestCircuit := computeSizeOfThreeLargestCircuits(junctionNetwork)
-
-	fmt.Printf("Multiply together, the sizes of the three largest circuits is: %d\n", threeLargestCircuit[0]*threeLargestCircuit[1]*threeLargestCircuit[2])
+	for _, part := range []PartMode{PartOne, PartTwo} {
+		currentPart = part
+		distanceForJunctionPairs := findNerestJunctions(junctions)
+		junctionNetwork := createJunctionNetwork(junctions, distanceForJunctionPairs)
+		switch part {
+		case PartOne:
+			threeLargestCircuit := computeSizeOfThreeLargestCircuits(junctionNetwork)
+			fmt.Println("Part one")
+			fmt.Println("------------------------------------------------------------------------------------------------------------------------------------------")
+			fmt.Printf("Multiply together, the sizes of the three largest circuits is: %d\n", threeLargestCircuit[0]*threeLargestCircuit[1]*threeLargestCircuit[2])
+			fmt.Println()
+			fmt.Println("Part two")
+			fmt.Println("------------------------------------------------------------------------------------------------------------------------------------------")
+			fmt.Println("For the second part, it is quite slow (about 10 or 20 min). We create all the possible junctions (around half a million). Please wait...")
+		case PartTwo:
+			fmt.Printf("Multipiling together the X coordinates of the last two junction boxes connecting the entire network gives: %d", lastJunctionPair.A.X*lastJunctionPair.B.X)
+		}
+	}
 }
