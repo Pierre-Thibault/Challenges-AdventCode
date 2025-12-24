@@ -115,16 +115,16 @@ struct PathFinder {
 }
 
 impl PathFinder {
-    fn new(points: impl Iterator<Item = Point> + Clone) -> Self {
-        fn get_map_x_to_y(points: impl Iterator<Item = Point>) -> MapXToY {
+    fn new(points: &[Point]) -> Self {
+        fn get_map_x_to_y(points: &[Point]) -> MapXToY {
             build_point_map(points, |p| (p.x, p.y))
         }
 
-        fn get_map_y_to_x(points: impl Iterator<Item = Point>) -> MapYToX {
+        fn get_map_y_to_x(points: &[Point]) -> MapYToX {
             build_point_map(points, |p| (p.y, p.x))
         }
 
-        fn build_point_map<T, F>(points: impl Iterator<Item = Point>, extractor: F) -> PointMap<T>
+        fn build_point_map<T, F>(points: &[Point], extractor: F) -> PointMap<T>
         where
             F: Fn(Point) -> (i32, i32),
         {
@@ -133,7 +133,7 @@ impl PathFinder {
                 _marker: PhantomData,
             };
             for point in points {
-                let (key, value) = extractor(point);
+                let (key, value) = extractor(*point);
                 result
                     .map
                     .entry(key)
@@ -144,11 +144,10 @@ impl PathFinder {
             result
         }
 
-        let points_clone = points.clone();
         Self {
             forbidden_area: Rect::default(),
             map_x_to_y: get_map_x_to_y(points),
-            map_y_to_x: get_map_y_to_x(points_clone),
+            map_y_to_x: get_map_y_to_x(points),
         }
     }
 
@@ -356,7 +355,7 @@ impl PathFinder {
 }
 
 fn find_biggest_rectangle_with_red_and_green_tiles(points: &[Point]) -> i64 {
-    let mut path_finder = PathFinder::new(points.iter().copied());
+    let mut path_finder = PathFinder::new(points);
     find_biggest_rectangle(points, Box::new(move |a, b| path_finder.are_points_reachable(a, b)))
 }
 
