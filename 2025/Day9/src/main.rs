@@ -166,12 +166,10 @@ impl PathFinder {
             },
         };
         // Search by passing by the left side:
-        let mut explored_points_horizontally: HashSet<Point> = HashSet::default();
-        let mut explored_points_vertically: HashSet<Point> = HashSet::default();
+        let mut explored_points: HashSet<Point> = HashSet::default();
         if !self._search_horizontally(
             starting_point,
-            &mut explored_points_horizontally,
-            &mut explored_points_vertically,
+            &mut explored_points,
             ending_point,
         ) {
             return false;
@@ -195,12 +193,10 @@ impl PathFinder {
             },
         };
         // Search by passing by the right side:
-        explored_points_horizontally.clear();
-        explored_points_vertically.clear();
+        explored_points.clear();
         self._search_horizontally(
             starting_point,
-            &mut explored_points_horizontally,
-            &mut explored_points_vertically,
+            &mut explored_points,
             ending_point,
         )
     }
@@ -208,11 +204,10 @@ impl PathFinder {
     fn _search_horizontally(
         &self,
         point: Point,
-        explored_points_horizontally: &mut HashSet<Point>,
-        explored_points_vertically: &mut HashSet<Point>,
+        explored_points: &mut HashSet<Point>,
         ending_point: Point,
     ) -> bool {
-        if explored_points_horizontally.contains(&point) {
+        if explored_points.contains(&point) {
             return false;
         }
 
@@ -225,16 +220,14 @@ impl PathFinder {
         {
             return true;
         }
-        explored_points_horizontally.insert(point);
 
         for &x in &map_y_to_x[&point.y] {
             let new_point = Point { x, y: point.y };
             if !self._in_forbidden_area(point, new_point)
                 && self._search_vertically(
-                    new_point,
-                    explored_points_horizontally,
-                    explored_points_vertically,
-                    ending_point,
+                new_point,
+                explored_points,
+                ending_point,
                 )
             {
                 return true;
@@ -246,11 +239,10 @@ impl PathFinder {
     fn _search_vertically(
         &self,
         point: Point,
-        explored_points_horizontally: &mut HashSet<Point>,
-        explored_points_vertically: &mut HashSet<Point>,
+        explored_points: &mut HashSet<Point>,
         ending_point: Point,
     ) -> bool {
-        if explored_points_vertically.contains(&point) {
+        if explored_points.contains(&point) {
             return false;
         }
 
@@ -263,16 +255,15 @@ impl PathFinder {
         {
             return true;
         }
-        explored_points_vertically.insert(point);
+        explored_points.insert(point);
 
         for &y in &map_x_to_y[&point.x] {
             let new_point = Point { x: point.x, y };
             if !self._in_forbidden_area(point, new_point)
                 && self._search_horizontally(
-                    new_point,
-                    explored_points_horizontally,
-                    explored_points_vertically,
-                    ending_point,
+                new_point,
+                explored_points,
+                ending_point,
                 )
             {
                 return true;
