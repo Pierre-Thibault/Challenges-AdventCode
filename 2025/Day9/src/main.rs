@@ -42,7 +42,7 @@ fn get_rectangle_area(a: Point, b: Point) -> i64 {
 // Part one
 // ***********************************************************************************
 
-fn find_biggest_rectangle(points: &Vec<Point>) -> i64 {
+fn find_biggest_rectangle(points: &[Point]) -> i64 {
     let mut result = 0;
     let mut already_processed_points = HashSet::new();
     for point_a in points {
@@ -51,7 +51,7 @@ fn find_biggest_rectangle(points: &Vec<Point>) -> i64 {
                 continue;
             }
             let area = get_rectangle_area(*point_a, *point_b);
-            result = if area > result { area } else { result }
+            result = max(area, result)
         }
         already_processed_points.insert(point_a);
     }
@@ -89,6 +89,7 @@ impl Rect {
     }
 }
 
+// Rectangles with equal areas are considered equal, so BTreeSet will keep only one.
 impl Ord for Rect {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.area().cmp(&other.area())
@@ -147,7 +148,6 @@ impl PathFinder {
     }
 
     fn are_points_reachable(&mut self, starting_point: Point, ending_point: Point) -> bool {
-
         // Block this area
         //  ●─────────┐ starting_point
         //  │**********************
@@ -168,7 +168,12 @@ impl PathFinder {
         // Search by passing by the left side:
         let mut explored_points_horizontally: HashSet<Point> = HashSet::default();
         let mut explored_points_vertically: HashSet<Point> = HashSet::default();
-        if !self.__search_horizontally(starting_point, &mut explored_points_horizontally, &mut explored_points_vertically, ending_point) {
+        if !self._search_horizontally(
+            starting_point,
+            &mut explored_points_horizontally,
+            &mut explored_points_vertically,
+            ending_point,
+        ) {
             return false;
         }
 
@@ -192,10 +197,15 @@ impl PathFinder {
         // Search by passing by the right side:
         explored_points_horizontally.clear();
         explored_points_vertically.clear();
-        self.__search_horizontally(starting_point, &mut explored_points_horizontally, &mut explored_points_vertically, ending_point)
+        self._search_horizontally(
+            starting_point,
+            &mut explored_points_horizontally,
+            &mut explored_points_vertically,
+            ending_point,
+        )
     }
 
-    fn __search_horizontally(
+    fn _search_horizontally(
         &self,
         point: Point,
         explored_points_horizontally: &mut HashSet<Point>,
@@ -208,7 +218,7 @@ impl PathFinder {
 
         let map_y_to_x = &self.map_y_to_x.map;
         if ending_point.y == point.y
-            && !self.__in_forbidden_area(point, ending_point)
+            && !self._in_forbidden_area(point, ending_point)
             && *map_y_to_x[&point.y].first().unwrap() <= ending_point.x
             && ending_point.x <= *map_y_to_x[&point.y].last().unwrap()
         {
@@ -218,20 +228,21 @@ impl PathFinder {
 
         for &x in &map_y_to_x[&point.y] {
             let new_point = Point { x, y: point.y };
-                if !self.__in_forbidden_area(point, new_point) && Self::__search_vertically(self,
-                                 new_point,
-                                 explored_points_horizontally,
-                                 explored_points_vertically,
-                                 ending_point,
+            if !self._in_forbidden_area(point, new_point)
+                && self._search_vertically(
+                    new_point,
+                    explored_points_horizontally,
+                    explored_points_vertically,
+                    ending_point,
                 )
-                {
-                    return true;
-                }
+            {
+                return true;
+            }
         }
         false
     }
 
-    fn __search_vertically(
+    fn _search_vertically(
         &self,
         point: Point,
         explored_points_horizontally: &mut HashSet<Point>,
@@ -244,7 +255,7 @@ impl PathFinder {
 
         let map_x_to_y = &self.map_x_to_y.map;
         if ending_point.x == point.x
-            && !self.__in_forbidden_area(point, ending_point)
+            && !self._in_forbidden_area(point, ending_point)
             && *map_x_to_y[&point.x].first().unwrap() <= ending_point.y
             && ending_point.y <= *map_x_to_y[&point.x].last().unwrap()
         {
@@ -254,20 +265,21 @@ impl PathFinder {
 
         for &y in &map_x_to_y[&point.x] {
             let new_point = Point { x: point.x, y };
-                if !self.__in_forbidden_area(point, new_point) && Self::__search_horizontally(self,
-                                 new_point,
-                                 explored_points_horizontally,
-                                 explored_points_vertically,
-                                 ending_point,
+            if !self._in_forbidden_area(point, new_point)
+                && self._search_horizontally(
+                    new_point,
+                    explored_points_horizontally,
+                    explored_points_vertically,
+                    ending_point,
                 )
-                {
-                    return true;
-                }
+            {
+                return true;
+            }
         }
         false
     }
 
-    fn __in_forbidden_area(&self, point1: Point, point2: Point) -> bool {
+    fn _in_forbidden_area(&self, point1: Point, point2: Point) -> bool {
         fn normalize_coordinates(starting_point: &mut Point, ending_point: &mut Point) {
             // Normalize coordinates
             //
@@ -327,22 +339,20 @@ impl PathFinder {
                 forbidden_area.starting_point.y,
                 forbidden_area.ending_point.y,
             )
+        } else if point1.x == point2.x {
+            // Vertical
+            outside_interval(
+                point1.y,
+                point2.y,
+                forbidden_area.starting_point.y,
+                forbidden_area.ending_point.y,
+            ) && in_interval(
+                point1.x,
+                forbidden_area.starting_point.x,
+                forbidden_area.ending_point.x,
+            )
         } else {
-            if point1.x == point2.x {
-                // Vertical
-                outside_interval(
-                    point1.y,
-                    point2.y,
-                    forbidden_area.starting_point.y,
-                    forbidden_area.ending_point.y,
-                ) && in_interval(
-                    point1.x,
-                    forbidden_area.starting_point.x,
-                    forbidden_area.ending_point.x,
-                )
-            } else {
-                panic!("Line not horizontal nor vertical.");
-            }
+            panic!("Line not horizontal nor vertical.");
         }
     }
 }
