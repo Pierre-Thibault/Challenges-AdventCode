@@ -215,17 +215,17 @@ impl PathFinder {
             return false;
         }
 
-        let map_y_to_x = &self.map_y_to_x.map;
+        let x_coordinates = &self.map_y_to_x.map[&point.y];
         // unwrap is safe because we read the coordinates in pairs
         if ending_point.y == point.y
             && !self._in_forbidden_area(point, ending_point)
-            && *map_y_to_x[&point.y].first().unwrap() <= ending_point.x
-            && ending_point.x <= *map_y_to_x[&point.y].last().unwrap()
+            && *x_coordinates.first().unwrap() <= ending_point.x
+            && ending_point.x <= *x_coordinates.last().unwrap()
         {
             return true;
         }
 
-        for &x in &map_y_to_x[&point.y] {
+        for &x in x_coordinates {
             let new_point = Point { x, y: point.y };
             if !self._in_forbidden_area(point, new_point)
                 && self._search_vertically(
@@ -250,18 +250,18 @@ impl PathFinder {
             return false;
         }
 
-        let map_x_to_y = &self.map_x_to_y.map;
+        let y_coordinates = &self.map_x_to_y.map[&point.x];
         // unwrap is safe because we read the coordinates in pairs
         if ending_point.x == point.x
             && !self._in_forbidden_area(point, ending_point)
-            && *map_x_to_y[&point.x].first().unwrap() <= ending_point.y
-            && ending_point.y <= *map_x_to_y[&point.x].last().unwrap()
+            && *y_coordinates.first().unwrap() <= ending_point.y
+            && ending_point.y <= *y_coordinates.last().unwrap()
         {
             return true;
         }
         explored_points.insert(point);
 
-        for &y in &map_x_to_y[&point.x] {
+        for &y in y_coordinates {
             let new_point = Point { x: point.x, y };
             if !self._in_forbidden_area(point, new_point)
                 && self._search_horizontally(
