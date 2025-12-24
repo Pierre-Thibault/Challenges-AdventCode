@@ -217,6 +217,7 @@ impl PathFinder {
         }
 
         let map_y_to_x = &self.map_y_to_x.map;
+        // unwrap is safe because we read the coordinates in pairs
         if ending_point.y == point.y
             && !self._in_forbidden_area(point, ending_point)
             && *map_y_to_x[&point.y].first().unwrap() <= ending_point.x
@@ -254,6 +255,7 @@ impl PathFinder {
         }
 
         let map_x_to_y = &self.map_x_to_y.map;
+        // unwrap is safe because we read the coordinates in pairs
         if ending_point.x == point.x
             && !self._in_forbidden_area(point, ending_point)
             && *map_x_to_y[&point.x].first().unwrap() <= ending_point.y
