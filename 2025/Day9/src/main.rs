@@ -42,16 +42,21 @@ fn get_rectangle_area(a: Point, b: Point) -> i64 {
 // Part one
 // ***********************************************************************************
 
-fn find_biggest_rectangle(points: &[Point]) -> i64 {
+fn find_biggest_rectangle_default(points: &[Point]) -> i64 {
+    find_biggest_rectangle(&points, Box::new(|_, _| true))
+}
+fn find_biggest_rectangle(points: &[Point], mut filter: Box<dyn FnMut(Point, Point) -> bool>) -> i64 {
     let mut result = 0;
     let mut already_processed_points = HashSet::new();
-    for point_a in points {
-        for point_b in points {
-            if point_a == point_b || already_processed_points.contains(&point_b) {
+    for &point_a in points {
+        for &point_b in points {
+            if point_a == point_b || already_processed_points.contains(&point_b)  {
                 continue;
             }
-            let area = get_rectangle_area(*point_a, *point_b);
-            result = max(area, result)
+            let area = get_rectangle_area(point_a, point_b);
+            if area > result && filter(point_a, point_b) {
+                result = area;
+            }
         }
         already_processed_points.insert(point_a);
     }
@@ -350,43 +355,15 @@ impl PathFinder {
     }
 }
 
-fn find_biggest_rectangle_with_red_and_green_tiles(points: &Vec<Point>) -> i64 {
-    let mut biggest_rectangles: BTreeSet<Rect> = BTreeSet::default();
-    const BIGGEST_RECTANGLES_LIMIT: usize = 100000;
-    let mut already_processed_points = HashSet::new();
+fn find_biggest_rectangle_with_red_and_green_tiles(points: &[Point]) -> i64 {
     let mut path_finder = PathFinder::new(points.iter().copied());
-    for point_a in points.iter().copied() {
-        for point_b in points.iter().copied() {
-            if point_a == point_b || already_processed_points.contains(&point_b) {
-                continue;
-            }
-            let rect = Rect {
-                starting_point: point_a,
-                ending_point: point_b,
-            };
-            if biggest_rectangles.is_empty()
-                || biggest_rectangles.first().unwrap().area() < rect.area()
-            {
-                biggest_rectangles.insert(rect);
-                if biggest_rectangles.len() > BIGGEST_RECTANGLES_LIMIT {
-                    biggest_rectangles.pop_first();
-                }
-            }
-        }
-        already_processed_points.insert(point_a);
-    }
-    for rectangle in biggest_rectangles.iter().rev() {
-        if path_finder.are_points_reachable(rectangle.starting_point, rectangle.ending_point) {
-            return rectangle.area();
-        }
-    }
-    0
+    find_biggest_rectangle(points, Box::new(move |a, b| path_finder.are_points_reachable(a, b)))
 }
 
 fn main() {
     let lines = read_lines("input").expect("Failed to open input file");
     let points = parse_points(lines);
-    println!("Biggest rectangle: {}", find_biggest_rectangle(&points));
+    println!("Biggest rectangle: {}", find_biggest_rectangle_default(&points));
     println!(
         "Biggest rectangle with red and green tiles: {}",
         find_biggest_rectangle_with_red_and_green_tiles(&points)
