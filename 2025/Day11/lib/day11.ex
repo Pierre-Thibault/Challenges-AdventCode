@@ -5,11 +5,14 @@ defmodule Day11 do
 
   @type device_set :: MapSet.t(String.t())
   @type device_map :: %{String.t() => device_set()}
-  
+  @type cache_key :: {String.t(), device_set()}
+  @type path_count :: non_neg_integer()
+  @type memo :: %{cache_key() => path_count()}
+
   @doc """
   Solve part 1
   """
-  @spec part1(String.t()) :: integer()
+  @spec part1(String.t()) :: path_count()
   def part1(input) do
     input
     |> parse()
@@ -19,7 +22,7 @@ defmodule Day11 do
   @doc """
   Solve part 2
   """
-  @spec part2(String.t()) :: integer()
+  @spec part2(String.t()) :: path_count()
   def part2(input) do
     input
     |> parse()
@@ -35,14 +38,14 @@ defmodule Day11 do
   end
 
   # Solve part 1 logic
-  @spec solve_part1([String.t()]) :: integer()
+  @spec solve_part1([String.t()]) :: path_count()
   defp solve_part1(data) do
     device_connections = create_map_from_data(data)
     explored_paths = MapSet.new()
     explore_paths(device_connections, device_connections["you"], explored_paths)
   end
 
-  @spec explore_paths(device_map(), device_set(), device_set()) :: integer()
+  @spec explore_paths(device_map(), device_set(), device_set()) :: path_count()
   defp explore_paths(device_connections, paths, explored) do
     # Add ALL current paths to explored BEFORE exploring them
     new_explored = MapSet.union(explored, paths)
@@ -64,55 +67,61 @@ defmodule Day11 do
   end
 
   # Solve part 2 logic
-  @spec solve_part2([String.t()]) :: integer()
+  @spec solve_part2([String.t()]) :: path_count()
   defp solve_part2(data) do
     device_connections = create_map_from_data(data)
     visited = MapSet.new()
-    required = ["dac", "fft"]
+    required = MapSet.new(["dac", "fft"])
+    memo = %{}
 
-    # Create ETS table for memoization
-    :ets.new(:memo, [:set, :public, :named_table])
-
-    result = count_paths_memo(device_connections, "svr", visited, required)
-
-    :ets.delete(:memo)
+    {result, _final_memo} = count_paths_memo(device_connections, "svr", visited, required, memo)
     result
   end
 
-  @spec count_paths_memo(device_map(), String.t(), device_set(), [String.t()]) :: integer()
-  defp count_paths_memo(device_connections, node, visited, required) do
+  @spec count_paths_memo(device_map(), String.t(), device_set(), device_set(), memo()) ::
+          {path_count(), memo()}
+  defp count_paths_memo(device_connections, node, visited, required, memo) do
     cond do
-      # If we've already visited this node (cycle), return 0
+      # If we've already visited this node (cycle) in the current path exploration, return 0
       MapSet.member?(visited, node) ->
-        0
+        {0, memo}
 
       # If we reach "out", check if we visited all required nodes
       node == "out" ->
-        has_all = Enum.all?(required, fn r -> MapSet.member?(visited, r) end)
-        if has_all, do: 1, else: 0
+        {(MapSet.subset?(required, visited) && 1) || 0, memo}
 
       # Otherwise, explore recursively with memoization
       true ->
         # Calculate which required nodes we've already visited
-        required_visited = Enum.filter(required, fn r -> MapSet.member?(visited, r) end) |> Enum.sort()
+        required_visited = MapSet.intersection(required, visited)
         cache_key = {node, required_visited}
 
         # Look up in the cache
-        case :ets.lookup(:memo, cache_key) do
-          [{^cache_key, cached_result}] ->
-            cached_result
-
-          [] ->
+        case Map.get(memo, cache_key) do
+          nil ->
             new_visited = MapSet.put(visited, node)
             neighbors = Map.get(device_connections, node, MapSet.new())
 
-            result = Enum.reduce(neighbors, 0, fn neighbor, count ->
-              count + count_paths_memo(device_connections, neighbor, new_visited, required)
-            end)
+            {result, updated_memo} =
+              Enum.reduce(neighbors, {0, memo}, fn neighbor, {count, current_memo} ->
+                {neighbor_count, new_memo} =
+                  count_paths_memo(
+                    device_connections,
+                    neighbor,
+                    new_visited,
+                    required,
+                    current_memo
+                  )
+
+                {count + neighbor_count, new_memo}
+              end)
 
             # Save in the cache
-            :ets.insert(:memo, {cache_key, result})
-            result
+            final_memo = Map.put(updated_memo, cache_key, result)
+            {result, final_memo}
+
+          cached_result ->
+            {cached_result, memo}
         end
     end
   end
@@ -122,6 +131,7 @@ defmodule Day11 do
   defp create_map_from_data(lines) do
     Enum.reduce(lines, %{}, fn line, acc ->
       [key | values] = String.split(line, ": ")
+
       value_set =
         values
         |> List.first()
